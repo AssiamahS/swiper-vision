@@ -1,0 +1,43 @@
+name: vision
+
+# One runner at a time holds the relay seat for ~5h40m, then exits; the cron queues the next one
+# (concurrency keeps exactly one running + one pending), so the seat is covered around the clock.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/20 * * * *'
+
+concurrency:
+  group: vision-seat
+  cancel-in-progress: false
+
+jobs:
+  serve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache model weights
+        uses: actions/cache@v4
+        with:
+          path: ~/.ollama/models
+          key: ollama-${{ vars.VISION_MODEL || 'gemma3:4b' }}-v1
+      - name: Install ollama
+        run: curl -fsSL https://ollama.com/install.sh | sh
+      - name: Start ollama + pull the model
+        env:
+          OLLAMA_KEEP_ALIVE: -1
+        run: |
+          nohup ollama serve > ollama.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:11434/api/tags >/dev/null && break; sleep 1; done
+          ollama pull "${{ vars.VISION_MODEL || 'gemma3:4b' }}"
+          ollama run "${{ vars.VISION_MODEL || 'gemma3:4b' }}" "say ok" --nowordwrap
+      - name: Serve the relay
+        env:
+          RELAY_URL: ${{ secrets.RELAY_URL }}
+          RELAY_KEY: ${{ secrets.RELAY_KEY }}
+          VISION_MODEL: ${{ vars.VISION_MODEL || 'gemma3:4b' }}
+          RUN_SECONDS: '20400'
+        run: |
+          pip install -q websocket-client
+          python3 runner.py
