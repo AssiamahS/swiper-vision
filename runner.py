@@ -5,7 +5,7 @@ No API keys for the model: the weights run here. Only RELAY_URL + RELAY_KEY (the
 import base64, json, os, sys, time, threading, urllib.request
 import websocket  # websocket-client
 
-RELAY = os.environ["RELAY_URL"].rstrip("/") + "/relay/ws"
+RELAY = os.environ["RELAY_URL"].rstrip("/").replace("https://", "wss://").replace("http://", "ws://") + "/relay/ws"
 KEY = os.environ["RELAY_KEY"]
 MODEL = os.environ.get("VISION_MODEL", "gemma3:4b")
 OLLAMA = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434")
@@ -50,7 +50,7 @@ def judge(text, urls):
 def main():
     while time.time() < STOP_AT:
         try:
-            ws = websocket.create_connection(RELAY, header=[f"X-Key: {KEY}"], timeout=60)
+            ws = websocket.create_connection(RELAY, header=[f"X-Key: {KEY}", "User-Agent: Mozilla/5.0 swiper-vision"], timeout=60)
             log("connected to the relay")
             ws.settimeout(30)
             last_ping = time.time()
