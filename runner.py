@@ -9,7 +9,7 @@ RELAY = os.environ["RELAY_URL"].rstrip("/").replace("https://", "wss://").replac
 KEY = os.environ["RELAY_KEY"]
 MODEL = os.environ.get("VISION_MODEL", "gemma3:4b")
 OLLAMA = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434")
-MAX_PHOTOS = int(os.environ.get("MAX_PHOTOS", "3"))
+MAX_PHOTOS = int(os.environ.get("MAX_PHOTOS", "2"))
 DEADLINE = float(os.environ.get("JOB_SECONDS", "40"))
 STOP_AT = time.time() + float(os.environ.get("RUN_SECONDS", str(5 * 3600 + 40 * 60)))  # leave the 6h job limit early
 
@@ -36,7 +36,7 @@ def judge(text, urls):
             log(f"photo fetch failed: {str(e)[:60]}")
     if not imgs:
         return {"error": "no usable photos"}
-    body = {"model": MODEL, "stream": False, "format": "json", "options": {"temperature": 0, "num_predict": 400},
+    body = {"model": MODEL, "stream": False, "format": "json", "options": {"temperature": 0, "num_predict": 300},
             "messages": [{"role": "user", "content": text, "images": imgs}]}
     req = urllib.request.Request(OLLAMA + "/api/chat", data=json.dumps(body).encode(), headers={"Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=DEADLINE) as r:
