@@ -1,0 +1,31 @@
+name: bench
+
+on:
+  workflow_dispatch:
+
+jobs:
+  bench:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, model: 'gemma3:4b' }
+          - { os: ubuntu-latest, model: 'qwen2.5vl:3b' }
+          - { os: ubuntu-latest, model: 'moondream' }
+          - { os: ubuntu-latest, model: 'granite3.2-vision' }
+          - { os: ubuntu-24.04-arm, model: 'gemma3:4b' }
+          - { os: ubuntu-24.04-arm, model: 'qwen2.5vl:3b' }
+    steps:
+      - uses: actions/checkout@v4
+      - run: curl -fsSL https://ollama.com/install.sh | sh
+      - name: bench ${{ matrix.model }} on ${{ matrix.os }}
+        env:
+          MODEL: ${{ matrix.model }}
+        run: |
+          nohup ollama serve > ollama.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:11434/api/tags >/dev/null && break; sleep 1; done
+          nproc; free -g | head -2
+          time ollama pull "$MODEL"
+          python3 bench.py
