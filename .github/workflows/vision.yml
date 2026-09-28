@@ -41,8 +41,8 @@ jobs:
           RELAY_KEY: ${{ secrets.RELAY_KEY }}
           VISION_MODEL: ${{ vars.VISION_MODEL || 'gemma3:4b' }}
           RUN_SECONDS: '20400'
-          JOB_SECONDS: '80'
-          MAX_PHOTOS: '2'
+          JOB_SECONDS: '110'
+          MAX_PHOTOS: '1'
           OLLAMA_NUM_PARALLEL: '1'
         run: |
           pip install -q websocket-client
