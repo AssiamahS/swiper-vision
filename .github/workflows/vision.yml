@@ -7,14 +7,17 @@ on:
   schedule:
     - cron: '*/20 * * * *'
 
-concurrency:
-  group: vision-seat
-  cancel-in-progress: false
-
 jobs:
   serve:
     runs-on: ubuntu-latest
     timeout-minutes: 355
+    strategy:
+      fail-fast: false
+      matrix:
+        seat: [1, 2, 3]
+    concurrency:
+      group: vision-seat-${{ matrix.seat }}
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
       - name: Cache model weights
