@@ -11,19 +11,20 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-latest, model: 'gemma3:4b' }
-          - { os: ubuntu-latest, model: 'qwen2.5vl:3b' }
-          - { os: ubuntu-latest, model: 'moondream' }
-          - { os: ubuntu-latest, model: 'granite3.2-vision' }
-          - { os: ubuntu-24.04-arm, model: 'gemma3:4b' }
-          - { os: ubuntu-24.04-arm, model: 'qwen2.5vl:3b' }
+          - { os: ubuntu-latest, model: 'qwen2.5vl:3b', resize: 448 }
+          - { os: ubuntu-latest, model: 'qwen2.5vl:3b', resize: 336 }
+          - { os: ubuntu-latest, model: 'gemma3:4b', resize: 448 }
+          - { os: ubuntu-latest, model: 'llava-phi3', resize: 448 }
+          - { os: ubuntu-latest, model: 'minicpm-v', resize: 448 }
     steps:
       - uses: actions/checkout@v4
       - run: curl -fsSL https://ollama.com/install.sh | sh
       - name: bench ${{ matrix.model }} on ${{ matrix.os }}
         env:
           MODEL: ${{ matrix.model }}
+          RESIZE: ${{ matrix.resize }}
         run: |
+          pip install -q pillow
           nohup ollama serve > ollama.log 2>&1 &
           for i in $(seq 1 30); do curl -sf http://127.0.0.1:11434/api/tags >/dev/null && break; sleep 1; done
           nproc; free -g | head -2
