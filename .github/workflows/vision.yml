@@ -44,6 +44,8 @@ jobs:
           JOB_SECONDS: '110'
           MAX_PHOTOS: '1'
           OLLAMA_NUM_PARALLEL: '1'
+          RESIZE: ${{ vars.RESIZE || '448' }}
+          SEAT: ${{ matrix.seat }}
         run: |
-          pip install -q websocket-client
+          pip install -q websocket-client pillow
           python3 runner.py

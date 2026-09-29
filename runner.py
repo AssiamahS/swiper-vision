@@ -10,6 +10,8 @@ KEY = os.environ["RELAY_KEY"]
 MODEL = os.environ.get("VISION_MODEL", "gemma3:4b")
 OLLAMA = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434")
 MAX_PHOTOS = int(os.environ.get("MAX_PHOTOS", "2"))
+RESIZE = int(os.environ.get("RESIZE", "448"))   # longest side sent to the model (vision-encoder cost scales with pixels on qwen-style models)
+STATS = {"jobs": 0, "errors": 0, "last_s": None, "avg_s": None, "model": MODEL}
 DEADLINE = float(os.environ.get("JOB_SECONDS", "40"))
 STOP_AT = time.time() + float(os.environ.get("RUN_SECONDS", str(5 * 3600 + 40 * 60)))  # leave the 6h job limit early
 
@@ -21,7 +23,18 @@ def log(m):
 def fetch(u):
     req = urllib.request.Request(u, headers={"User-Agent": "Mozilla/5.0", "Referer": "https://tinder.com/"})
     with urllib.request.urlopen(req, timeout=15) as r:
-        return r.read()
+        b = r.read()
+    if RESIZE:
+        try:
+            from PIL import Image
+            import io
+            im = Image.open(io.BytesIO(b)).convert("RGB")
+            if max(im.size) > RESIZE:
+                im.thumbnail((RESIZE, RESIZE))
+                out = io.BytesIO(); im.save(out, "JPEG", quality=85); b = out.getvalue()
+        except Exception as e:
+            log(f"resize skipped: {str(e)[:60]}")
+    return b
 
 
 def judge(text, urls):
@@ -52,6 +65,7 @@ def main():
         try:
             ws = websocket.create_connection(RELAY, header=[f"X-Key: {KEY}", "User-Agent: Mozilla/5.0 swiper-vision"], timeout=60)
             log("connected to the relay")
+            ws.send(json.dumps({"type": "hello", "stats": STATS, "seat": os.environ.get("SEAT", "?")}))
             ws.settimeout(30)
             last_ping = time.time()
             while time.time() < STOP_AT:
@@ -74,8 +88,11 @@ def main():
                     v = judge(m.get("text") or "", m.get("urls") or [])
                 except Exception as e:
                     v = {"error": f"runner: {str(e)[:100]}"}
-                ws.send(json.dumps({"type": "result", "id": m["id"], "verdict": v}))
-                log(f"{m['id']} -> {('ERR ' + v['error']) if 'error' in v else v.get('_timing')} ({time.time() - t:.1f}s)")
+                took = time.time() - t
+                STATS["jobs"] += 1; STATS["errors"] += 1 if "error" in v else 0; STATS["last_s"] = round(took, 1)
+                STATS["avg_s"] = round(took if STATS["avg_s"] is None else STATS["avg_s"] * 0.8 + took * 0.2, 1)
+                ws.send(json.dumps({"type": "result", "id": m["id"], "verdict": v, "stats": STATS}))
+                log(f"{m['id']} -> {('ERR ' + v['error']) if 'error' in v else v.get('_timing')} ({took:.1f}s)")
             ws.close()
         except Exception as e:
             log(f"relay error: {str(e)[:100]}; reconnecting in 5s")
