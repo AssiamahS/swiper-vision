@@ -72,7 +72,7 @@ def main():
                 try:
                     raw = ws.recv()
                 except websocket.WebSocketTimeoutException:
-                    if time.time() - last_ping > 25:
+                    if time.time() - last_ping > 20:
                         ws.send(json.dumps({"type": "ping"})); last_ping = time.time()
                     continue
                 if not raw:
@@ -91,7 +91,7 @@ def main():
                 took = time.time() - t
                 STATS["jobs"] += 1; STATS["errors"] += 1 if "error" in v else 0; STATS["last_s"] = round(took, 1)
                 STATS["avg_s"] = round(took if STATS["avg_s"] is None else STATS["avg_s"] * 0.8 + took * 0.2, 1)
-                ws.send(json.dumps({"type": "result", "id": m["id"], "verdict": v, "stats": STATS}))
+                ws.send(json.dumps({"type": "result", "id": m["id"], "verdict": v, "stats": STATS})); last_ping = time.time()
                 log(f"{m['id']} -> {('ERR ' + v['error']) if 'error' in v else v.get('_timing')} ({took:.1f}s)")
             ws.close()
         except Exception as e:
